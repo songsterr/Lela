@@ -28,7 +28,7 @@
     }
     NSString *version = [[UIDevice currentDevice] systemVersion];
     
-    return [NSString stringWithFormat:@"%@-%dx%d@%dx~%@,iOS%@", screenName, (int)screenSize.width, (int)screenSize.height, (int)roundf(scale), idiom, version];
+    return [NSString stringWithFormat:@"%@-%dx%d@%dx-%@,iOS%@", screenName, (int)screenSize.width, (int)screenSize.height, (int)roundf(scale), idiom, version];
 }
 
 + (NSString *)directoryForTestRunNamed:(NSString *)name
@@ -45,13 +45,14 @@
 + (NSString *)saveImage:(UIImage *)image type:(LelaResultImageType)type named:(NSString *)name testRun:(NSString *)testRun
 {
     NSString *fileName;
+    NSString *imageNameForScreen = [self imageNameForScreenNamed:name];
     switch (type) {
-        case LelaResultImageTypeActual:     fileName = [self imageNameForScreenNamed:name]; break;
-        case LelaResultImageTypeExpected:   fileName = @"Expected";   break;
-        case LelaResultImageTypeDifference: fileName = @"Difference"; break;
+        case LelaResultImageTypeActual:     fileName = imageNameForScreen; break;
+        case LelaResultImageTypeExpected:   fileName = [NSString stringWithFormat:@"%@-%@", imageNameForScreen, @"Expected"]; break;
+        case LelaResultImageTypeDifference: fileName = [NSString stringWithFormat:@"%@-%@", imageNameForScreen, @"Difference"]; break;
     }
     
-    NSString *directoryPath = [[self directoryForTestRunNamed:testRun] stringByAppendingPathComponent:[self imageNameForScreenNamed:name]];
+    NSString *directoryPath = [self directoryForTestRunNamed:testRun];
     NSString *filePath = [[directoryPath stringByAppendingPathComponent:fileName] stringByAppendingPathExtension:@"png"];
     
     [[NSFileManager defaultManager] createDirectoryAtPath:directoryPath withIntermediateDirectories:YES attributes:nil error:NULL];
