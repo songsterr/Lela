@@ -33,8 +33,12 @@
 
 + (NSString *)directoryForTestRunNamed:(NSString *)name
 {
+#if TARGET_IPHONE_SIMULATOR
+    return [@"/tmp/Lela Tests" stringByAppendingPathComponent:name];
+#else
     NSString *path = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES)[0];
     return [[path stringByAppendingPathComponent:@"Lela Tests"] stringByAppendingPathComponent:name];
+#endif
 }
 
 + (NSString *)directoryForExpectedImages
