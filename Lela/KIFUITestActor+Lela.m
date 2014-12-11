@@ -44,12 +44,17 @@ NSString * const LECompareOptionThresholdPixels = @"LECompareOptionThresholdPixe
         NSString *result = [Lela saveImage:screenshot type:LelaResultImageTypeActual named:name testRun:runName];
         
         [self failWithError:[NSError KIFErrorWithFormat:@"Could not find expected image for %@.\nActual result: %@", name, result] stopTest:NO];
-    } else if (![Lela compareExpectedImage:expectedImage toActual:screenshot options:options difference:&difference]) {
-        NSString *actualOutput = [Lela saveImage:screenshot type:LelaResultImageTypeActual named:name testRun:runName];
-        NSString *expectedOutput = [Lela saveImage:expectedImage type:LelaResultImageTypeExpected named:name testRun:runName];
-        NSString *differenceOutput = [Lela saveImage:difference type:LelaResultImageTypeDifference named:name testRun:runName];
-        
-        [self failWithError:[NSError KIFErrorWithFormat:@"Screen does not match expected image for %@.\nExpected result: %@\nActual result:   %@\nDifference:      %@", name, expectedOutput, actualOutput, differenceOutput] stopTest:NO];
+    } else {
+        NSString *imageDiffErrorDescripton = nil;
+        if (![Lela compareExpectedImage:expectedImage toActual:screenshot options:options difference:&difference errorDescription:&imageDiffErrorDescripton]) {
+            NSString *actualOutput = [Lela saveImage:screenshot type:LelaResultImageTypeActual named:name testRun:runName];
+            NSString *expectedOutput = [Lela saveImage:expectedImage type:LelaResultImageTypeExpected named:name testRun:runName];
+            NSString *differenceOutput = [Lela saveImage:difference type:LelaResultImageTypeDifference named:name testRun:runName];
+            
+            NSString *errorFormat = @"Screen does not match expected image for %@.\nExpected result: %@\nActual result:   %@\nDifference:      %@\nDescription: %@";
+            NSError *error = [NSError KIFErrorWithFormat:errorFormat, name, expectedOutput, actualOutput, differenceOutput, imageDiffErrorDescripton];
+            [self failWithError:error stopTest:NO];
+        }
     }
 }
 

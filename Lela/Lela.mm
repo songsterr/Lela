@@ -119,7 +119,7 @@
     return image;
 }
 
-+ (BOOL)compareExpectedImage:(UIImage *)expected toActual:(UIImage *)actual options:(NSDictionary *)options difference:(UIImage **)difference
++ (BOOL)compareExpectedImage:(UIImage *)expected toActual:(UIImage *)actual options:(NSDictionary *)options difference:(UIImage **)difference errorDescription:(NSString **)errorDescription
 {
     CompareArgs args;
     args.ImgA = RGBAImage::ReadFromUIImage(expected);
@@ -131,6 +131,12 @@
     
     if (!success && difference) {
         *difference = args.ImgDiff->Get_UIImage();
+        if (errorDescription != nil) {
+            NSString *errorMessage = [NSString stringWithCString:args.ErrorStr.c_str()
+                                                        encoding:[NSString defaultCStringEncoding]];
+            errorMessage = [errorMessage stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+            *errorDescription = errorMessage;
+        }
     }
     
     return success;
