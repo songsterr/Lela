@@ -14,11 +14,17 @@
 #include "CompareArgs.h"
 #include "Metric.h"
 
+#define SYSTEM_VERSION_EQUAL_TO(v)                  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] == NSOrderedSame)
+#define SYSTEM_VERSION_GREATER_THAN(v)              ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] == NSOrderedDescending)
+#define SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(v)  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] != NSOrderedAscending)
+#define SYSTEM_VERSION_LESS_THAN(v)                 ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] == NSOrderedAscending)
+#define SYSTEM_VERSION_LESS_THAN_OR_EQUAL_TO(v)     ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] != NSOrderedDescending)
+
 @implementation Lela
 
 + (NSString *)imageNameForScreenNamed:(NSString *)screenName
 {
-    CGSize screenSize = [UIScreen mainScreen].bounds.size;
+    CGSize screenSize = [self screenSize];
     CGFloat scale = [UIScreen mainScreen].scale;
     NSString *idiom;
     
@@ -73,49 +79,51 @@
     return [UIImage imageWithContentsOfFile:filePath];
 }
 
++ (CGSize)screenSize
+{
+    CGSize imageSize = [UIScreen mainScreen].bounds.size;;
+    UIInterfaceOrientation orientation = [UIApplication sharedApplication].statusBarOrientation;
+    if (UIInterfaceOrientationIsLandscape(orientation) && SYSTEM_VERSION_LESS_THAN(@"8.0")) {
+        CGSize screenSize = [UIScreen mainScreen].bounds.size;
+        imageSize.width = screenSize.height;
+        imageSize.height = screenSize.width;
+    }
+    return imageSize;
+}
+
 + (UIImage *)captureScreenshot
 {
-    // Create a graphics context with the target size
-    // On iOS 4 and later, use UIGraphicsBeginImageContextWithOptions to take the scale into consideration
-    // On iOS prior to 4, fall back to use UIGraphicsBeginImageContext
-    CGSize imageSize = [[UIScreen mainScreen] bounds].size;
-    if (NULL != UIGraphicsBeginImageContextWithOptions)
-        UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0);
-    else
-        UIGraphicsBeginImageContext(imageSize);
-    
+    CGSize imageSize = [self screenSize];
+    UIGraphicsBeginImageContextWithOptions(imageSize, NO, 0);
     CGContextRef context = UIGraphicsGetCurrentContext();
-    
-    // Iterate over every window from back to front
-    for (UIWindow *window in [[UIApplication sharedApplication] windows])
-    {
-        if (![window respondsToSelector:@selector(screen)] || [window screen] == [UIScreen mainScreen])
-        {
-            // -renderInContext: renders in the coordinate space of the layer,
-            // so we must first apply the layer's geometry to the graphics context
-            CGContextSaveGState(context);
-            // Center the context around the window's anchor point
-            CGContextTranslateCTM(context, [window center].x, [window center].y);
-            // Apply the window's transform about the anchor point
-            CGContextConcatCTM(context, [window transform]);
-            // Offset by the portion of the bounds left of and above the anchor point
-            CGContextTranslateCTM(context,
-                                  -[window bounds].size.width * [[window layer] anchorPoint].x,
-                                  -[window bounds].size.height * [[window layer] anchorPoint].y);
-            
-            // Render the layer hierarchy to the current context
-            [[window layer] renderInContext:context];
-            
-            // Restore the context
-            CGContextRestoreGState(context);
+    for (UIWindow *window in [[UIApplication sharedApplication] windows]) {
+        CGContextSaveGState(context);
+        CGContextTranslateCTM(context, window.center.x, window.center.y);
+        CGContextConcatCTM(context, window.transform);
+        CGContextTranslateCTM(context, -window.bounds.size.width * window.layer.anchorPoint.x, -window.bounds.size.height * window.layer.anchorPoint.y);
+        if (SYSTEM_VERSION_LESS_THAN(@"8.0")) {
+            UIInterfaceOrientation orientation = [UIApplication sharedApplication].statusBarOrientation;
+            if (orientation == UIInterfaceOrientationLandscapeLeft) {
+                CGContextRotateCTM(context, M_PI_2);
+                CGContextTranslateCTM(context, 0, -imageSize.width);
+            } else if (orientation == UIInterfaceOrientationLandscapeRight) {
+                CGContextRotateCTM(context, -M_PI_2);
+                CGContextTranslateCTM(context, -imageSize.height, 0);
+            } else if (orientation == UIInterfaceOrientationPortraitUpsideDown) {
+                CGContextRotateCTM(context, M_PI);
+                CGContextTranslateCTM(context, -imageSize.width, -imageSize.height);
+            }
         }
+        if ([window respondsToSelector:@selector(drawViewHierarchyInRect:afterScreenUpdates:)]) {
+            [window drawViewHierarchyInRect:window.bounds afterScreenUpdates:YES];
+        } else {
+            [window.layer renderInContext:context];
+        }
+        CGContextRestoreGState(context);
     }
     
-    // Retrieve the screenshot image
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-    
     UIGraphicsEndImageContext();
-    
     return image;
 }
 
